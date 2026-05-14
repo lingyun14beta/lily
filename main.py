@@ -734,7 +734,7 @@ class LiliStatePlugin(Star):
                 stored_content = _user_intent_summary(msg)
             else:
                 stored_content = msg[:max_chars] if max_chars > 0 else msg
-            state["conversation_log"].append({
+            state.setdefault("conversation_log", []).append({
                 "role": "user",
                 "user_id": uid,
                 "content": stored_content,
