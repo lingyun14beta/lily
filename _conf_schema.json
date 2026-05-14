@@ -232,6 +232,6 @@
     "description": "持久化对话日志到磁盘",
     "type": "bool",
     "hint": "关闭后对话历史只存在内存中（重启丢失），但仍正常注入大模型。状态数值正常持久化。",
-    "default": true
+    "default": false
   }
 }
