@@ -455,13 +455,14 @@ def build_inject_text(state: dict, user_id: str, user_msg: str,
         if random.random() < prob:
             state["stutter_done"] = True
             stutter = True
+    inject_ctx = config.get("inject_conversation_context", False) if config else False
     context = build_conversation_context(
         state, current_user_id=user_id,
         max_entries=context_entries,
         user_msg_max_chars=msg_max_chars,
         thought_mode=thought_mode,
         config=config,
-    )
+    ) if inject_ctx else ""
     enable_aff = config.get("enable_affection", True) if config else True
     enable_lew = config.get("enable_lewdness", True) if config else True
     allow_ero = config.get("allow_erotic_content", True) if config else True
@@ -497,7 +498,7 @@ def build_inject_text(state: dict, user_id: str, user_msg: str,
         "【行为参考】行为规则见上文SKILL.md中情绪/时段/好感度部分\n"
         "\n"
         # 动态状态注入（人设和关系已在 SKILL.md 中由模板填充）
-        f"{context}"
+        f"{context}" if inject_ctx else ""
     )
 
 

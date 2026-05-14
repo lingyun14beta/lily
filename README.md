@@ -82,7 +82,9 @@
 |--------|:--:|:--:|------|
 | `max_history_count` | int | 30 | 对话历史最大条数。0=不限；超时窗口外的消息超出上限时裁剪 |
 | `history_timeout_seconds` | int | 600 | 超时保护窗口（秒）。窗口内的消息永不丢弃；建议 300~1800 |
-| `conversation_context_entries` | int | 20 | 注入 prompt 的历史条数。应 ≤ 历史最大条数，越大 token 消耗越多 |
+| `inject_conversation_context` | bool | false | 是否在 system_prompt 中注入对话历史。关闭时仅通过 messages 数组传递历史，大幅减少 token 消耗且有利于缓存命中。开启后会额外消耗大量 token（每轮约 200~1000+）|
+
+| `conversation_context_entries` | int | 20 | 当 inject_conversation_context 开启时，注入 prompt 的历史条数。应 ≤ 历史最大条数 |
 
 ### 消息存储
 
@@ -182,7 +184,7 @@ SKILL_TEMPLATE.md（骨架，含 {{placeholders}}）
   ├── 裁剪超时历史 (groom_history)
   ├── 计算去重计数、距离上条时间、结巴概率（`stutter_probability`）
   ├── 注入动态状态（感受/聊天对象/行为参考）   ← 无静态人设，无硬编码行为提示
-  └── 注入对话上下文 (build_conversation_context)
+  └── 注入对话上下文 (build_conversation_context，受 inject_conversation_context 控制)
   │
   ▼
 LLM 收到：
@@ -275,4 +277,5 @@ SKILL.md 与配置一致，跳过写入（配置未变化）    ← 或 "写入�
 
 ## 版本
 
+v1.4.1 — 新增配置项 `inject_conversation_context`（默认关闭），关闭后不再往 system_prompt 注入对话历史，大幅减少 token 消耗并提高缓存命中率。修复 `conversation_context_entries` 配置项在关闭历史注入时仍浪费 token 的问题。
 v1.4.0 — 新增配置项 `persona_style_extra`、`save_conversation_log`、`stutter_probability`；修复 `unrestricted_list` 列表/字符串兼容；结巴概率由配置控制，触发时注入"说话有点结巴"，不触发不注入任何内容，移除 reply_rules 中的结巴规则

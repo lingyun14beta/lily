@@ -179,6 +179,12 @@
     "min": 60,
     "max": 7200
   },
+  "inject_conversation_context": {
+    "description": "注入对话历史到提示词",
+    "type": "bool",
+    "hint": "开启后在 system_prompt 中注入对话历史（方便 LLM 记住上下文，但会大幅增加 token 消耗且无法命中缓存）。关闭后仅通过 messages 数组传递历史，更省 token。",
+    "default": false
+  },
   "conversation_context_entries": {
     "description": "注入历史条数",
     "type": "int",
