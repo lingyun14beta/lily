@@ -754,10 +754,22 @@ class LiliStatePlugin(Star):
                                        msg_max_chars=msg_max_chars,
                                        thought_mode=thought_mode)
 
-            if req.system_prompt:
-                req.system_prompt += f"\n\n{inject}\n"
-            else:
-                req.system_prompt = inject
+            # 注入到用户消息头部以保持 system_prompt 固定 → 前缀缓存不中断
+            _injected = False
+            if req.contexts:
+                for i in range(len(req.contexts) - 1, -1, -1):
+                    ctx = req.contexts[i]
+                    if ctx.get("role") == "user":
+                        existing = ctx.get("content", "")
+                        if isinstance(existing, str):
+                            ctx["content"] = f"{inject}\n\n{existing}"
+                            _injected = True
+                        break
+            if not _injected:
+                if req.system_prompt:
+                    req.system_prompt += f"\n\n{inject}\n"
+                else:
+                    req.system_prompt = inject
 
             event.set_extra("_lili_state", state)
             event.set_extra("_lili_user_msg", msg)
