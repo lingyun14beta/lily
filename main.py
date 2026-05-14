@@ -754,22 +754,21 @@ class LiliStatePlugin(Star):
                                        msg_max_chars=msg_max_chars,
                                        thought_mode=thought_mode)
 
-            # 注入到用户消息头部以保持 system_prompt 固定 → 前缀缓存不中断
+            # 注入到当前用户消息（req.prompt），而非历史上下文（req.contexts）
+            # 原因: Runner 构建消息时:
+            #   messages = bind_checkpoint_messages(request.contexts)  ← 历史消息
+            #   messages.append(assemble_context(request))            ← 当前消息来自 req.prompt
+            # 所以 inject 挂到 req.prompt 头部，才会出现在当前消息最前面
+            # 历史消息不变 → 前缀缓存 100% 稳定
             _injected = False
-            if req.contexts:
-                for i in range(len(req.contexts) - 1, -1, -1):
-                    ctx = req.contexts[i]
-                    if ctx.get("role") == "user":
-                        existing = ctx.get("content", "")
-                        if isinstance(existing, str):
-                            ctx["content"] = f"{inject}\n\n{existing}"
-                            _injected = True
-                        break
-            if not _injected:
-                if req.system_prompt:
-                    req.system_prompt += f"\n\n{inject}\n"
-                else:
-                    req.system_prompt = inject
+            if req.prompt:
+                req.prompt = f"{inject}\n\n{req.prompt}"
+                _injected = True
+            elif req.system_prompt:
+                req.system_prompt += f"\n\n{inject}\n"
+                _injected = True
+            else:
+                req.system_prompt = inject
 
             event.set_extra("_lili_state", state)
             event.set_extra("_lili_user_msg", msg)
