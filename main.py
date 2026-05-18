@@ -484,21 +484,25 @@ def build_inject_text(state: dict, user_id: str, user_msg: str,
             restricted_users = []
         if user_id not in restricted_users:
             restriction = "\n【内容限制】\n禁止回复任何色情内容。\n"
+    # 预先组装条件文本（避免 f-string 表达式内出现 \n）
+    stutter_line = "说话有点结巴。\n\n" if stutter else "\n"
+    aff_line = f"你对ta{aff_feel}。\n" if enable_aff else "\n"
+    dup_line = f"TA刚发了条跟之前一模一样的消息，今天已经第{dup_count}次了。\n" if dup_count > 1 else ""
+    time_line = f"上条消息就在{minutes}发的。\n" if minutes != "刚刚" else "TA刚发完上一条。\n"
+    ctx_line = f"{context}" if inject_ctx else ""
     return (
         f"【{bot_name}当前感受】\n"
         f"现在是{period_label()}了。心情{em_label}{dep_suffix}。{lewd_feel}。\n"
-        f"{'说话有点结巴。\n' if stutter else ''}"
-        "\n"
+        f"{stutter_line}"
         f"【关于聊天对象】\n"
-        f"你在跟{user_id}聊天。" + (f"你对ta{aff_feel}。\n" if enable_aff else "\n") +
-        f"{'TA刚发了条跟之前一模一样的消息，今天已经第' + str(dup_count) + '次了。' if dup_count > 1 else ''}\n"
-        f"{'上条消息就在' + minutes + '发的。' if minutes != '刚刚' else 'TA刚发完上一条。'}\n"
+        f"你在跟{user_id}聊天。{aff_line}"
+        f"{dup_line}"
+        f"{time_line}"
         f"{restriction}"
         "\n"
         "【行为参考】行为规则见上文SKILL.md中情绪/时段/好感度部分\n"
         "\n"
-        # 动态状态注入（人设和关系已在 SKILL.md 中由模板填充）
-        f"{context}" if inject_ctx else ""
+        f"{ctx_line}"
     )
 
 
