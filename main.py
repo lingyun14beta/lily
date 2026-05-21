@@ -484,6 +484,19 @@ def build_inject_text(state: dict, user_id: str, user_msg: str,
             restricted_users = []
         if user_id not in restricted_users:
             restriction = "\n【内容限制】\n禁止回复任何色情内容。\n"
+    # 内心思考过程引导（让角色更像人在用脑子说话）
+    thinking_enabled = config.get("thinking_mode", "开启") if config else "开启"
+    thinking_guide = ""
+    if thinking_enabled == "开启":
+        thinking_guide = (
+            "【思考过程引导（内心进行，不要输出）】\n"
+            "在回复之前，先在内心过一遍：\n"
+            "1. 理解：对方这句话到底想表达什么？有没有潜台词？\n"
+            "2. 判断：这事我懂吗？在我的认知范围内吗？对方是不是在越线/冒犯？\n"
+            "3. 回应：按我的性格、当前心情、和ta的关系，最适合怎么接？我的底线在哪？\n"
+            "4. 边界：我不会的东西别装懂，直接说不知道/不懂/做不到。知道自己的局限。\n"
+            "想完这些之后，再用你的风格给出最终回复。\n\n"
+        )
     # 预先组装条件文本（避免 f-string 表达式内出现 \n）
     stutter_line = "说话有点结巴。\n\n" if stutter else "\n"
     aff_line = f"你对ta{aff_feel}。\n" if enable_aff else "\n"
@@ -491,6 +504,7 @@ def build_inject_text(state: dict, user_id: str, user_msg: str,
     time_line = f"上条消息就在{minutes}发的。\n" if minutes != "刚刚" else "TA刚发完上一条。\n"
     ctx_line = f"{context}" if inject_ctx else ""
     return (
+        f"{thinking_guide}"
         f"【{bot_name}当前感受】\n"
         f"现在是{period_label()}了。心情{em_label}{dep_suffix}。{lewd_feel}。\n"
         f"{stutter_line}"
@@ -499,7 +513,6 @@ def build_inject_text(state: dict, user_id: str, user_msg: str,
         f"{dup_line}"
         f"{time_line}"
         f"{restriction}"
-        "\n"
         "【行为参考】行为规则见上文SKILL.md中情绪/时段/好感度部分\n"
         "\n"
         f"{ctx_line}"
@@ -677,6 +690,7 @@ class LiliStatePlugin(Star):
             if "persona_style_extra" in schema and "default" in schema["persona_style_extra"]:
                 extra_style = schema["persona_style_extra"]["default"]
         replacements["persona_style_extra"] = extra_style
+
 
         # 关系列表：格式化为 JSON 数组字符串
         def fmt_list(key):
