@@ -548,11 +548,86 @@ class LiliStatePlugin(Star):
         self._patch_config_defaults()
         self._log_cache: OrderedDict = OrderedDict()  # umo -> conversation_log，最多 _LOG_CACHE_MAX 条
         self._LOG_CACHE_MAX = 500
+        self._persona_prompt: str = self._build_persona_prompt()
 
         bot_name = _get_bot_name(self.config)
         logger.info(f"{bot_name}状态管理插件已加载")
 
 
+
+    def _build_persona_prompt(self) -> str:
+        """从 config 读取人设配置，渲染为完整的人设 prompt，缓存到内存。"""
+        schema_path = Path(__file__).parent / "_conf_schema.json"
+        try:
+            with open(schema_path, "r", encoding="utf-8") as f:
+                schema = json.load(f)
+        except Exception:
+            schema = {}
+
+        def get_val(key: str) -> str:
+            val = self.config.get(key, "")
+            if isinstance(val, str):
+                val = val.strip()
+            if not val and key in schema and "default" in schema[key]:
+                val = schema[key]["default"]
+            return val or ""
+
+        def fmt_list(key: str) -> str:
+            raw = self.config.get(key)
+            if isinstance(raw, list):
+                items = [str(u).strip() for u in raw if str(u).strip()]
+            elif isinstance(raw, str) and raw.strip():
+                items = [u.strip() for u in raw.replace("，", ",").split(",") if u.strip()]
+            else:
+                items = []
+            if not items and key in schema and "default" in schema[key]:
+                default = schema[key]["default"]
+                if isinstance(default, str) and default.strip():
+                    items = [u.strip() for u in default.replace("，", ",").split(",") if u.strip()]
+            return "[" + ", ".join(f'"{u}"' for u in items) + "]"
+
+        bot_name = get_val("bot_name") or "莉莉"
+
+        template_path = Path(__file__).parent / "lili_persona" / "SKILL_TEMPLATE.md"
+        try:
+            with open(template_path, "r", encoding="utf-8") as f:
+                template = f.read()
+        except Exception as e:
+            logger.warning(f"读取 SKILL_TEMPLATE.md 失败: {e}")
+            return ""
+
+        # 去掉 frontmatter（--- ... ---）
+        if template.startswith("---"):
+            end = template.find("---", 3)
+            if end != -1:
+                template = template[end + 3:].lstrip("\n")
+
+        replacements = {
+            "bot_name": bot_name,
+            "persona_core": get_val("persona_core"),
+            "persona_personality": get_val("persona_personality"),
+            "persona_interests": get_val("persona_interests"),
+            "persona_background": get_val("persona_background"),
+            "persona_oral_habits": get_val("persona_oral_habits"),
+            "persona_taboos": get_val("persona_taboos"),
+            "persona_emotion_rules": get_val("persona_emotion_rules"),
+            "persona_time_rules": get_val("persona_time_rules"),
+            "persona_interaction_styles": get_val("persona_interaction_styles"),
+            "persona_memory_rules": get_val("persona_memory_rules"),
+            "persona_style_extra": get_val("persona_style_extra"),
+            "reply_rules": get_val("reply_rules"),
+            "friend_list": fmt_list("friend_list"),
+            "neighbor_classmate_list": fmt_list("neighbor_classmate_list"),
+            "enemy_list": fmt_list("enemy_list"),
+            "nemesis_list": fmt_list("nemesis_list"),
+            "unrestricted_list": fmt_list("unrestricted_list"),
+        }
+
+        for key, val in replacements.items():
+            template = template.replace("{{" + key + "}}", val)
+
+        logger.info(f"人设 prompt 已渲染（{len(template)} chars）")
+        return template
 
     def _patch_config_defaults(self):
         """补全 config 中空值项为 schema 默认值。
@@ -639,6 +714,9 @@ class LiliStatePlugin(Star):
                 req.system_prompt += f"\n\n{inject}\n"
             else:
                 req.system_prompt = inject
+
+            if self._persona_prompt:
+                req.system_prompt = self._persona_prompt + "\n\n" + req.system_prompt
 
             event.set_extra("_lili_state", state)
             event.set_extra("_lili_user_msg", msg)
