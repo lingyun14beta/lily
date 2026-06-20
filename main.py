@@ -19,6 +19,7 @@ from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star
 from astrbot.api.provider import ProviderRequest, LLMResponse
 from astrbot.api import logger, AstrBotConfig
+from astrbot.core.agent.message import TextPart
 
 STATE_DIR = Path("data/plugin_data/lili_state")
 
@@ -717,17 +718,18 @@ class LiliStatePlugin(Star):
                                        msg_max_chars=msg_max_chars,
                                        thought_mode=thought_mode)
 
-            # 注入到当前用户消息（req.prompt），而非历史上下文（req.contexts）
-            # 原因: Runner 构建消息时:
-            if req.prompt:
-                req.prompt = f"{inject}\n\n{req.prompt}"
-            elif req.system_prompt:
-                req.system_prompt += f"\n\n{inject}\n"
-            else:
-                req.system_prompt = inject
+            # 注入到 extra_user_content_parts，标记为临时（mark_as_temp）
+            # 优点：
+            #   1. 不写 system_prompt，不与 AstrBot 人格系统（Persona Instructions）冲突
+            #   2. 不写 req.prompt，不污染用户原始消息
+            #   3. mark_as_temp() 后该内容只在本轮请求中对 Provider 可见，不会被存入对话历史，
+            #      下一轮不会重复消耗 token
+            req.extra_user_content_parts.append(TextPart(text=inject).mark_as_temp())
 
             if self._persona_prompt:
-                req.system_prompt = self._persona_prompt + "\n\n" + req.system_prompt
+                req.extra_user_content_parts.append(
+                    TextPart(text=self._persona_prompt).mark_as_temp()
+                )
 
             event.set_extra("_lili_state", state)
             event.set_extra("_lili_user_msg", msg)
